@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.venv/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data directories
+data/
+*.db
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ChromaDB
+chroma/
+
+# Cloned documentation
+backend/knowledge_base/docs_repo/
+
+# Embedding cache
+backend/knowledge_base/.embedding_cache/
+
+# Local ChromaDB
+backend/knowledge_base/chroma_db/
+
+# Claude Code settings
+.claude/
+
+# Misc artifacts
+backend/0.4.22

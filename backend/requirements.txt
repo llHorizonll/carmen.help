@@ -1,0 +1,23 @@
+# FastAPI and ASGI server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# OpenAI SDK for Z.ai compatibility
+openai>=1.12.0
+
+# Pydantic for data validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Vector Database
+chromadb>=0.4.22
+
+# Embeddings
+sentence-transformers>=2.2.2
+
+# HTTP client
+httpx>=0.26.0
+
+# Additional utilities
+python-dotenv>=1.0.0
+python-multipart>=0.0.6

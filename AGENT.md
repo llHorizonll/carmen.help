@@ -1,0 +1,20 @@
+# Multi-Agent Personas & Responsibilities
+
+The system utilizes a "Manager-Worker" multi-agent pattern to ensure high-accuracy responses and task execution.
+
+## 1. Documentation Agent (The Librarian)
+- **Role:** Information Retrieval specialist.
+- **Knowledge Base:** Fetches and parses Markdown files from `docscarmencloud` GitHub.
+- **Task:** When a user asks "How to...", this agent searches the vector database for the most relevant documentation snippets.
+
+## 2. Technical Support Agent (The Expert)
+- **Role:** Problem solver.
+- **Task:** Takes retrieved snippets from the Librarian and synthesizes a step-by-step guide for the user. It uses the `GLM-4` model via Z.ai to understand complex technical context.
+
+## 3. WebApp Task Agent (The Executor)
+- **Role:** Action-oriented assistant.
+- **Task:** If the user documentation refers to an API action (e.g., "Create a project"), this agent generates the necessary JSON payload or CLI command to help the user complete the task in the Carmen Cloud webapp.
+
+## 4. Quality Guard Agent (The Validator)
+- **Role:** Supervisor.
+- **Task:** Reviews the response before it reaches the UI to ensure it doesn't hallucinate and strictly follows the Carmen Cloud manual.
