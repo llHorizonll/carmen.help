@@ -4,12 +4,13 @@ Handles user chat queries with RAG-powered responses.
 """
 
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 import json
 
 from api.rag import get_rag_pipeline, RAGPipeline
+from services.chat_log import get_chat_log_service, ChatLogService
 
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -24,6 +25,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
     message: str = Field(..., description="The user's message")
+    session_id: Optional[str] = Field(default=None, description="Chat session ID for conversation continuity")
     chat_history: Optional[List[ChatMessage]] = Field(
         default=None, description="Previous conversation history"
     )
@@ -44,6 +46,7 @@ class ChatResponse(BaseModel):
     """Response model for non-streaming chat."""
     answer: str
     sources: List[SourceDocument]
+    session_id: Optional[str] = None
 
 
 async def stream_response(
@@ -89,8 +92,24 @@ async def stream_response(
 async def chat(
     request: ChatRequest,
     rag_pipeline: RAGPipeline = Depends(get_rag_pipeline),
+    chat_log: ChatLogService = Depends(get_chat_log_service),
+    x_user_id: Optional[str] = Header(default=None),
 ):
     """Chat endpoint that processes user queries using RAG."""
+    # Get or create session
+    session_id = request.session_id
+    if not session_id:
+        session = chat_log.create_session(user_id=x_user_id)
+        session_id = session.id
+
+    # Log user message
+    chat_log.add_message(
+        session_id=session_id,
+        role="user",
+        content=request.message,
+    )
+
+    # Build chat history
     chat_history = None
     if request.chat_history:
         chat_history = [
@@ -111,6 +130,7 @@ async def chat(
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
+                "X-Session-Id": session_id,
             },
         )
 
@@ -119,6 +139,18 @@ async def chat(
             query=request.message,
             chat_history=chat_history,
             top_k=request.top_k,
+        )
+
+        # Log assistant response
+        sources_data = [
+            {"id": doc.id, "source_url": doc.source_url, "score": doc.score}
+            for doc in result.sources
+        ]
+        chat_log.add_message(
+            session_id=session_id,
+            role="assistant",
+            content=result.answer,
+            sources=sources_data,
         )
 
         return ChatResponse(
@@ -133,6 +165,7 @@ async def chat(
                 )
                 for doc in result.sources
             ],
+            session_id=session_id,
         )
 
     except Exception as e:
@@ -144,8 +177,97 @@ async def get_suggestions():
     """Get auto-suggest questions for the chat widget."""
     return {
         "suggestions": [
-            "How do I set up billing?",
-            "What is the site policy?",
-            "How do I create a new project?",
+            "How do I reconcile a bank statement in Carmen?",
+            "Show me all pending Accounts Payable invoices for approval.",
+            "What is the current status of the City Ledger from the PMS?",
         ]
     }
+
+
+# ===== Chat History Endpoints =====
+
+@router.post("/sessions")
+async def create_session(
+    chat_log: ChatLogService = Depends(get_chat_log_service),
+    x_user_id: Optional[str] = Header(default=None),
+):
+    """Create a new chat session."""
+    session = chat_log.create_session(user_id=x_user_id)
+    return {
+        "session_id": session.id,
+        "created_at": session.created_at,
+    }
+
+
+@router.get("/sessions")
+async def list_sessions(
+    limit: int = 50,
+    chat_log: ChatLogService = Depends(get_chat_log_service),
+    x_user_id: Optional[str] = Header(default=None),
+):
+    """List chat sessions for a user."""
+    if x_user_id:
+        sessions = chat_log.get_user_sessions(x_user_id, limit=limit)
+    else:
+        sessions = chat_log.get_recent_sessions(limit=limit)
+
+    return {
+        "sessions": [
+            {
+                "id": s.id,
+                "user_id": s.user_id,
+                "created_at": s.created_at,
+                "updated_at": s.updated_at,
+            }
+            for s in sessions
+        ]
+    }
+
+
+@router.get("/sessions/{session_id}")
+async def get_session_history(
+    session_id: str,
+    chat_log: ChatLogService = Depends(get_chat_log_service),
+):
+    """Get chat history for a session."""
+    session = chat_log.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    messages = chat_log.get_session_messages(session_id)
+
+    return {
+        "session_id": session.id,
+        "created_at": session.created_at,
+        "messages": [
+            {
+                "id": m.id,
+                "role": m.role,
+                "content": m.content,
+                "sources": m.sources,
+                "timestamp": m.timestamp,
+            }
+            for m in messages
+        ]
+    }
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    chat_log: ChatLogService = Depends(get_chat_log_service),
+):
+    """Delete a chat session."""
+    deleted = chat_log.delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {"message": "Session deleted", "session_id": session_id}
+
+
+@router.get("/stats")
+async def get_chat_stats(
+    chat_log: ChatLogService = Depends(get_chat_log_service),
+):
+    """Get chat statistics."""
+    return chat_log.get_stats()

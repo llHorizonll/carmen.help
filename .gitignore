@@ -58,3 +58,6 @@ backend/knowledge_base/chroma_db/
 
 # Misc artifacts
 backend/0.4.22
+
+# Chat logs database
+backend/data/chat_logs.db
