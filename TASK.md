@@ -33,3 +33,15 @@
 - [x] Create separate Chat page (`/`) with bubble-style usage stats.
 - [x] Create Statistics page (`/stats`) for viewing chat logs and analytics.
 - [x] Add navigation between pages with react-router-dom.
+
+## Phase 7: Admin Tools
+- [x] Create ChromaDB Admin API endpoints (`/api/admin/chroma/*`).
+- [x] Implement collection listing and stats.
+- [x] Add document browsing with pagination.
+- [x] Add semantic search functionality for documents.
+- [x] Add document deletion capability.
+- [x] Create ChromaDB Admin UI page (`/admin/chroma`).
+- [x] Add collections sidebar with document counts.
+- [x] Add documents table with metadata display.
+- [x] Add document detail modal view.
+- [x] Add navigation links between all pages.

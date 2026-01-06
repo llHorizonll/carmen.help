@@ -233,9 +233,12 @@ async def get_suggestions():
     """Get auto-suggest questions for the chat widget."""
     return {
         "suggestions": [
-            "How do I reconcile a bank statement in Carmen?",
-            "Show me all pending Accounts Payable invoices for approval.",
-            "What is the current status of the City Ledger from the PMS?",
+            "ขอดูรายการหนี้ค้างชำระ (AR Aging) ที่เกินกำหนด 30 วัน",
+            "มีบิลค่าใช้จ่าย (AP) ใบไหนที่รออนุมัติการจ่ายเงินบ้าง?",
+            "ขอวิธีแก้ไขกรณีมียอดหนี้ค้างชำระ (AR) เกิน 90 วัน",
+            "มีข้อผิดพลาด (Error) หรือปัญหา (Issue) อะไรที่พบในระบบ PMS บ้าง?",
+            "ขอดูรายงานสรุปค่าใช้จ่าย (Expense Report) ประจำเดือนล่าสุด",
+            "ช่วยแนะนำวิธีเพิ่มประสิทธิภาพการจัดการหนี้ค้างชำระ (AR Management)",
         ]
     }
 

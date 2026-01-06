@@ -75,7 +75,7 @@ const StatsPage: React.FC = () => {
   };
 
   const deleteSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this session?')) return;
+    if (!confirm('คุณแน่ใจหรือไม่ที่จะลบเซสชันนี้?')) return;
 
     try {
       await fetch(`/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
@@ -109,8 +109,8 @@ const StatsPage: React.FC = () => {
             <path d="M18 20V10M12 20V4M6 20v-6" />
           </svg>
           <div>
-            <div className="header-title">Chat Log Statistics</div>
-            <div className="header-subtitle">View conversation history and analytics</div>
+            <div className="header-title">สถิติการใช้งาน</div>
+            <div className="header-subtitle">ดูประวัติการสนทนาและข้อมูลวิเคราะห์</div>
           </div>
         </div>
 
@@ -119,7 +119,7 @@ const StatsPage: React.FC = () => {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-          Back to Chat
+          <span>กลับไปแชท</span>
         </Link>
       </div>
 
@@ -135,35 +135,35 @@ const StatsPage: React.FC = () => {
         {stats && (
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-label">Total Sessions</div>
+              <div className="stat-label">เซสชันทั้งหมด</div>
               <div className={`stat-value stat-value-blue`}>
                 {stats.total_sessions.toLocaleString()}
               </div>
             </div>
 
             <div className="stat-card">
-              <div className="stat-label">Total Messages</div>
+              <div className="stat-label">ข้อความทั้งหมด</div>
               <div className={`stat-value stat-value-green`}>
                 {stats.total_messages.toLocaleString()}
               </div>
             </div>
 
             <div className="stat-card">
-              <div className="stat-label">Sessions Today</div>
+              <div className="stat-label">เซสชันวันนี้</div>
               <div className={`stat-value stat-value-orange`}>
                 {stats.sessions_today.toLocaleString()}
               </div>
             </div>
 
             <div className="stat-card">
-              <div className="stat-label">Messages by Role</div>
+              <div className="stat-label">ข้อความแยกตามบทบาท</div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
                 <div>
-                  <span className="role-label">User: </span>
+                  <span className="role-label">ผู้ใช้: </span>
                   <span className="role-value">{stats.messages_by_role.user || 0}</span>
                 </div>
                 <div>
-                  <span className="role-label">Assistant: </span>
+                  <span className="role-label">ผู้ช่วย: </span>
                   <span className="role-value">{stats.messages_by_role.assistant || 0}</span>
                 </div>
               </div>
@@ -176,16 +176,16 @@ const StatsPage: React.FC = () => {
           {/* Sessions List */}
           <div className="sessions-list">
             <div className="panel-header">
-              Recent Sessions ({sessions.length})
+              เซสชันล่าสุด ({sessions.length})
             </div>
 
             {loading ? (
               <div className="loading-state">
-                Loading...
+                กำลังโหลด...
               </div>
             ) : sessions.length === 0 ? (
               <div className="empty-state">
-                No sessions found
+                ไม่พบเซสชัน
               </div>
             ) : (
               <div className="sessions-container">
@@ -234,7 +234,7 @@ const StatsPage: React.FC = () => {
           {selectedSession && (
             <div className="sessions-list">
               <div className="panel-header panel-header-with-actions">
-                <span>Conversation ({sessionMessages.length} messages)</span>
+                <span>การสนทนา ({sessionMessages.length} ข้อความ)</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -258,14 +258,14 @@ const StatsPage: React.FC = () => {
                     className={`message ${message.role}`}
                   >
                     <div className="message-meta">
-                      {message.role === 'user' ? 'User' : 'Assistant'} - {formatDate(message.timestamp)}
+                      {message.role === 'user' ? 'ผู้ใช้' : 'ผู้ช่วย'} - {formatDate(message.timestamp)}
                     </div>
                     <div className={`message-bubble ${message.role}`}>
                       {truncateText(message.content, 500)}
                     </div>
                     {message.sources && message.sources.length > 0 && (
                       <div className="message-sources">
-                        {message.sources.length} source(s) cited
+                        {message.sources.length} แหล่งอ้างอิง
                       </div>
                     )}
                   </div>

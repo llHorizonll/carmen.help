@@ -4,7 +4,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ChatProvider } from './context/ChatContext';
 import ChatPage from './pages/ChatPage';
 import StatsPage from './pages/StatsPage';
+import ChromaAdminPage from './pages/ChromaAdminPage';
 import '@chatui/core/dist/index.css';
+import './styles/global.css';
 
 // Suppress defaultProps warning from @chatui/core (third-party library issue)
 const originalWarn = console.error;
@@ -20,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<ChatPage />} />
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="/admin/chroma" element={<ChromaAdminPage />} />
         </Routes>
       </ChatProvider>
     </BrowserRouter>

@@ -11,6 +11,7 @@ import time
 
 from config import settings
 from api.chat import router as chat_router
+from api.admin import router as admin_router
 
 
 @asynccontextmanager
@@ -74,6 +75,7 @@ async def root():
 
 
 app.include_router(chat_router)
+app.include_router(admin_router)
 
 
 @app.exception_handler(Exception)

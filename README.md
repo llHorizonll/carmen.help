@@ -281,6 +281,7 @@ carmen.help/
 │   ├── api/                       # API Endpoints
 │   │   ├── __init__.py
 │   │   ├── chat.py                # Chat endpoint (streaming)
+│   │   ├── admin.py               # ChromaDB admin endpoints
 │   │   └── rag.py                 # RAG retrieval logic
 │   │
 │   ├── knowledge_base/            # RAG Pipeline
@@ -308,7 +309,8 @@ carmen.help/
 │   │   ├── main.tsx               # React entry point with router
 │   │   └── pages/
 │   │       ├── ChatPage.tsx       # Chat interface with bubble stats
-│   │       └── StatsPage.tsx      # Chat log statistics dashboard
+│   │       ├── StatsPage.tsx      # Chat log statistics dashboard
+│   │       └── ChromaAdminPage.tsx # ChromaDB admin UI
 │   │
 │   ├── index.html                 # HTML template
 │   ├── package.json               # Node dependencies
@@ -391,9 +393,12 @@ Response:
 ```json
 {
   "suggestions": [
-    "How do I reconcile a bank statement in Carmen?",
-    "Show me all pending Accounts Payable invoices for approval.",
-    "What is the current status of the City Ledger from the PMS?"
+    "ขอดูรายการหนี้ค้างชำระ (AR Aging) ที่เกินกำหนด 30 วัน",
+    "มีบิลค่าใช้จ่าย (AP) ใบไหนที่รออนุมัติการจ่ายเงินบ้าง?",
+    "ขอวิธีแก้ไขกรณีมียอดหนี้ค้างชำระ (AR) เกิน 90 วัน",
+    "มีข้อผิดพลาด (Error) หรือปัญหา (Issue) อะไรที่พบในระบบ PMS บ้าง?",
+    "ขอดูรายงานสรุปค่าใช้จ่าย (Expense Report) ประจำเดือนล่าสุด",
+    "ช่วยแนะนำวิธีเพิ่มประสิทธิภาพการจัดการหนี้ค้างชำระ (AR Management)"
   ]
 }
 ```
@@ -439,6 +444,68 @@ Response:
   "sessions_today": 12,
   "db_path": "/app/data/chat_logs.db"
 }
+```
+
+### ChromaDB Admin Endpoints
+
+**Get ChromaDB Stats:**
+```bash
+GET /api/admin/chroma/stats
+```
+
+Response:
+```json
+{
+  "persist_directory": "./data/chroma",
+  "total_collections": 1,
+  "total_documents": 245,
+  "collections": [
+    {"name": "carmen_docs", "count": 245, "metadata": {}}
+  ]
+}
+```
+
+**List Collections:**
+```bash
+GET /api/admin/chroma/collections
+```
+
+**Get Collection Info:**
+```bash
+GET /api/admin/chroma/collections/{collection_name}
+```
+
+**List Documents (Paginated):**
+```bash
+GET /api/admin/chroma/collections/{collection_name}/documents?offset=0&limit=20
+```
+
+**Get Single Document:**
+```bash
+GET /api/admin/chroma/collections/{collection_name}/documents/{document_id}
+```
+
+**Semantic Search:**
+```bash
+GET /api/admin/chroma/collections/{collection_name}/search?q=billing&top_k=10
+```
+
+Response:
+```json
+[
+  {
+    "id": "doc-123",
+    "document": "Billing setup instructions...",
+    "metadata": {"source": "billing.md"},
+    "distance": 0.15,
+    "similarity": 0.85
+  }
+]
+```
+
+**Delete Document:**
+```bash
+DELETE /api/admin/chroma/collections/{collection_name}/documents/{document_id}
 ```
 
 ---
@@ -813,6 +880,7 @@ curl http://localhost:8000/health
 - **Chat History**: Session-based conversation logging with SQLite storage
 - **Usage Analytics**: Token count and response time tracking with bubble icon
 - **Statistics Dashboard**: View chat sessions, messages, and analytics
+- **ChromaDB Admin**: Browse collections, view/search/delete documents in vector database
 
 ## Frontend Pages
 
@@ -820,6 +888,7 @@ curl http://localhost:8000/health
 |-------|-------------|
 | `/` | Chat page with AI assistant and usage bubble |
 | `/stats` | Statistics dashboard with session history |
+| `/admin/chroma` | ChromaDB admin UI for vector database management |
 
 ---
 
