@@ -5,6 +5,7 @@ A seamless, human-like help desk assistant for Carmen Cloud that reduces support
 ## Table of Contents
 
 - [Architecture](#architecture)
+- [Architecture Diagrams](#architecture-diagrams)
 - [Requirements](#requirements)
 - [Installation](#installation)
   - [Backend Setup](#backend-setup)
@@ -38,6 +39,23 @@ A seamless, human-like help desk assistant for Carmen Cloud that reduces support
 | LLM | Z.ai GLM-4.7 (OpenAI-compatible API) |
 | Vector DB | ChromaDB |
 | Embeddings | HuggingFace all-MiniLM-L6-v2 |
+
+---
+
+## Architecture Diagrams
+
+For detailed visual documentation including infrastructure diagrams, user flows, and system design:
+
+**[📊 View Full Architecture Documentation →](ARCHITECTURE.md)**
+
+Includes:
+- System Overview & Infrastructure Architecture
+- Multi-Agent System Pipeline (Manager-Worker Pattern)
+- RAG Pipeline Flow & Document Processing
+- User Flow Diagrams (Chat, Analytics, Admin)
+- API Architecture & Data Flow
+- Tech Stack Overview
+- Deployment Architecture (Development & Production)
 
 ---
 
