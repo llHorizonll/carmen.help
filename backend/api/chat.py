@@ -42,11 +42,20 @@ class SourceDocument(BaseModel):
     metadata: Dict[str, Any] = {}
 
 
+class UsageStats(BaseModel):
+    """Token usage and timing statistics."""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    response_time_ms: float = 0.0
+
+
 class ChatResponse(BaseModel):
     """Response model for non-streaming chat."""
     answer: str
     sources: List[SourceDocument]
     session_id: Optional[str] = None
+    usage: Optional[UsageStats] = None
 
 
 async def stream_response(
@@ -54,8 +63,12 @@ async def stream_response(
     chat_history: Optional[List[Dict[str, str]]],
     top_k: Optional[int],
     rag_pipeline: RAGPipeline,
+    chat_log: ChatLogService,
+    session_id: str,
 ):
     """Generate streaming response with SSE format."""
+    full_response = ""
+    sources_list = []
     try:
         generator, metadata = await rag_pipeline.query_stream(
             query=query,
@@ -63,9 +76,30 @@ async def stream_response(
             top_k=top_k,
         )
 
-        async for chunk in generator:
-            data = {"type": "chunk", "content": chunk}
-            yield f"data: {json.dumps(data)}\n\n"
+        usage_stats = None
+        async for item in generator:
+            if item.get("type") == "content":
+                content = item["content"]
+                full_response += content
+                data = {"type": "chunk", "content": content}
+                yield f"data: {json.dumps(data)}\n\n"
+            elif item.get("type") == "stats":
+                usage_stats = {
+                    "prompt_tokens": item.get("prompt_tokens", 0),
+                    "completion_tokens": item.get("completion_tokens", 0),
+                    "total_tokens": item.get("total_tokens", 0),
+                    "response_time_ms": item.get("response_time_ms", 0),
+                }
+
+        # Prepare sources
+        sources_list = [
+            {
+                "id": doc.id,
+                "source_url": doc.source_url,
+                "score": doc.score,
+            }
+            for doc in metadata.sources
+        ]
 
         sources_data = {
             "type": "sources",
@@ -81,6 +115,20 @@ async def stream_response(
             ],
         }
         yield f"data: {json.dumps(sources_data)}\n\n"
+
+        # Send usage stats
+        if usage_stats:
+            yield f"data: {json.dumps({'type': 'usage', **usage_stats})}\n\n"
+
+        # Log assistant response to database
+        if full_response:
+            chat_log.add_message(
+                session_id=session_id,
+                role="assistant",
+                content=full_response,
+                sources=sources_list if sources_list else None,
+            )
+
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     except Exception as e:
@@ -124,6 +172,8 @@ async def chat(
                 chat_history=chat_history,
                 top_k=request.top_k,
                 rag_pipeline=rag_pipeline,
+                chat_log=chat_log,
+                session_id=session_id,
             ),
             media_type="text/event-stream",
             headers={
@@ -166,6 +216,12 @@ async def chat(
                 for doc in result.sources
             ],
             session_id=session_id,
+            usage=UsageStats(
+                prompt_tokens=result.usage.prompt_tokens,
+                completion_tokens=result.usage.completion_tokens,
+                total_tokens=result.usage.total_tokens,
+                response_time_ms=result.usage.response_time_ms,
+            ),
         )
 
     except Exception as e:

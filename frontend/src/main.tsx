@@ -1,6 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ChatProvider } from './context/ChatContext';
+import ChatPage from './pages/ChatPage';
+import StatsPage from './pages/StatsPage';
 import '@chatui/core/dist/index.css';
 
 // Suppress defaultProps warning from @chatui/core (third-party library issue)
@@ -12,6 +15,13 @@ console.error = (...args) => {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <ChatProvider>
+        <Routes>
+          <Route path="/" element={<ChatPage />} />
+          <Route path="/stats" element={<StatsPage />} />
+        </Routes>
+      </ChatProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

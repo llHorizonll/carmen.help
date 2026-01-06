@@ -22,3 +22,14 @@
 ## Phase 5: Deployment
 - [ ] Deploy backend to Vercel/Render.
 - [ ] Add the Chat Widget to the main Carmen Cloud production site.
+
+## Phase 6: Analytics & Observability
+- [x] Implement chat session logging (SQLite storage).
+- [x] Add message history with sources tracking.
+- [x] Create chat statistics endpoint (`/api/chat/stats`).
+- [x] Track token usage (prompt, completion, total tokens).
+- [x] Track LLM response time.
+- [x] Display usage stats on frontend (tokens + response time).
+- [x] Create separate Chat page (`/`) with bubble-style usage stats.
+- [x] Create Statistics page (`/stats`) for viewing chat logs and analytics.
+- [x] Add navigation between pages with react-router-dom.

@@ -295,7 +295,8 @@ carmen.help/
 │   ├── services/                  # External Services
 │   │   ├── __init__.py
 │   │   ├── llm.py                 # Z.ai LLM integration
-│   │   └── retriever.py           # Vector DB search
+│   │   ├── retriever.py           # Vector DB search
+│   │   └── chat_log.py            # Chat session logging (SQLite)
 │   │
 │   ├── config.py                  # Configuration settings
 │   ├── main.py                    # FastAPI application
@@ -304,8 +305,10 @@ carmen.help/
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx                # Main chat application
-│   │   └── main.tsx               # React entry point
+│   │   ├── main.tsx               # React entry point with router
+│   │   └── pages/
+│   │       ├── ChatPage.tsx       # Chat interface with bubble stats
+│   │       └── StatsPage.tsx      # Chat log statistics dashboard
 │   │
 │   ├── index.html                 # HTML template
 │   ├── package.json               # Node dependencies
@@ -316,7 +319,8 @@ carmen.help/
 │
 ├── data/                          # Generated data (gitignored)
 │   ├── docs/                      # Cloned documentation
-│   └── chroma/                    # Vector database
+│   ├── chroma/                    # Vector database
+│   └── chat_logs.db               # Chat session history (SQLite)
 │
 ├── .env.example                   # Environment template
 ├── .gitignore
@@ -351,6 +355,7 @@ Content-Type: application/json
 
 {
   "message": "How do I set up billing?",
+  "session_id": "optional-session-uuid",
   "stream": false
 }
 ```
@@ -365,7 +370,14 @@ Response:
       "source_url": "https://docscarmencloud.vercel.app/billing",
       "score": 0.89
     }
-  ]
+  ],
+  "session_id": "uuid-session-id",
+  "usage": {
+    "prompt_tokens": 1250,
+    "completion_tokens": 320,
+    "total_tokens": 1570,
+    "response_time_ms": 2340.5
+  }
 }
 ```
 
@@ -379,10 +391,53 @@ Response:
 ```json
 {
   "suggestions": [
-    "How do I set up billing?",
-    "What is the site policy?",
-    "How do I create a new project?"
+    "How do I reconcile a bank statement in Carmen?",
+    "Show me all pending Accounts Payable invoices for approval.",
+    "What is the current status of the City Ledger from the PMS?"
   ]
+}
+```
+
+### Chat History Endpoints
+
+**Create Session:**
+```bash
+POST /api/chat/sessions
+X-User-Id: optional-user-id
+```
+
+**List Sessions:**
+```bash
+GET /api/chat/sessions?limit=50
+X-User-Id: optional-user-id
+```
+
+**Get Session History:**
+```bash
+GET /api/chat/sessions/{session_id}
+```
+
+**Delete Session:**
+```bash
+DELETE /api/chat/sessions/{session_id}
+```
+
+**Get Statistics:**
+```bash
+GET /api/chat/stats
+```
+
+Response:
+```json
+{
+  "total_sessions": 150,
+  "total_messages": 520,
+  "messages_by_role": {
+    "user": 260,
+    "assistant": 260
+  },
+  "sessions_today": 12,
+  "db_path": "/app/data/chat_logs.db"
 }
 ```
 
@@ -755,6 +810,16 @@ curl http://localhost:8000/health
 - **Hallucination Detection**: Validator checks responses against source docs
 - **Streaming**: Real-time response streaming (SSE)
 - **Code Blocks**: Syntax highlighted with copy button
+- **Chat History**: Session-based conversation logging with SQLite storage
+- **Usage Analytics**: Token count and response time tracking with bubble icon
+- **Statistics Dashboard**: View chat sessions, messages, and analytics
+
+## Frontend Pages
+
+| Route | Description |
+|-------|-------------|
+| `/` | Chat page with AI assistant and usage bubble |
+| `/stats` | Statistics dashboard with session history |
 
 ---
 

@@ -2,14 +2,27 @@ import React, { useState, useRef, useEffect } from 'react';
 import Chat, { Bubble, useMessages } from '@chatui/core';
 
 const SUGGESTIONS = [
-  'How do I set up billing?',
-  'What is the site policy?',
-  'How do I create a new project?',
+  'How do I reconcile a bank statement in Carmen?',
+  'Show me all pending Accounts Payable invoices for approval.',
+  'What is the current status of the City Ledger from the PMS?',
 ];
+
+interface UsageStats {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  response_time_ms: number;
+}
+
+const formatResponseTime = (ms: number): string => {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
 
 const App: React.FC = () => {
   const { messages, appendMsg, setTyping } = useMessages([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [lastUsage, setLastUsage] = useState<UsageStats | null>(null);
 
   const handleSend = async (type: string, val: string) => {
     if (type === 'text' && val.trim()) {
@@ -20,6 +33,7 @@ const App: React.FC = () => {
       });
 
       setTyping(true);
+      setLastUsage(null);
 
       try {
         const response = await fetch('/api/chat/', {
@@ -39,6 +53,11 @@ const App: React.FC = () => {
             const url = source.source_url || `https://docscarmencloud.vercel.app/${source.id}`;
             responseText += `${i + 1}. [${source.id || 'Documentation'}](${url})\n`;
           });
+        }
+
+        // Store usage stats
+        if (data.usage) {
+          setLastUsage(data.usage);
         }
 
         appendMsg({
@@ -101,15 +120,49 @@ const App: React.FC = () => {
       </div>
 
       {/* Chat */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <Chat
-          messages={messages}
-          renderMessageContent={renderMessageContent}
-          onSend={handleSend}
-          placeholder="Type your message..."
-          quickReplies={messages.length === 0 ? SUGGESTIONS.map(s => ({ name: s })) : []}
-          onQuickReplyClick={handleQuickReply}
-        />
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <Chat
+            messages={messages}
+            renderMessageContent={renderMessageContent}
+            onSend={handleSend}
+            placeholder="Type your message..."
+            quickReplies={messages.length === 0 ? SUGGESTIONS.map(s => ({ name: s })) : []}
+            onQuickReplyClick={handleQuickReply}
+          />
+        </div>
+
+        {/* Usage Stats Footer */}
+        {lastUsage && (
+          <div style={{
+            background: '#f5f5f5',
+            borderTop: '1px solid #e0e0e0',
+            padding: '8px 16px',
+            fontSize: '12px',
+            color: '#666',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <span title="Prompt tokens">
+                Input: {lastUsage.prompt_tokens} tokens
+              </span>
+              <span title="Completion tokens">
+                Output: {lastUsage.completion_tokens} tokens
+              </span>
+              <span title="Total tokens" style={{ fontWeight: 500 }}>
+                Total: {lastUsage.total_tokens} tokens
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>Response time:</span>
+              <span style={{ fontWeight: 500 }}>
+                {formatResponseTime(lastUsage.response_time_ms)}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

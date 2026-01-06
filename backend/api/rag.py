@@ -4,14 +4,23 @@ Orchestrates the RAG pipeline: query -> vector search -> context augmentation ->
 """
 
 from typing import AsyncGenerator, List, Dict, Any, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from services.llm import get_llm_service, LLMService
+from services.llm import get_llm_service, LLMService, LLMResponse
 from services.retriever import get_retriever_service, RetrieverService, RetrievedDocument
+
+
+@dataclass
+class UsageStats:
+    """Token usage and timing statistics."""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    response_time_ms: float = 0.0
 
 
 @dataclass
@@ -20,6 +29,7 @@ class RAGResponse:
     answer: str
     sources: List[RetrievedDocument]
     context_used: str
+    usage: UsageStats = field(default_factory=UsageStats)
 
 
 @dataclass
@@ -27,6 +37,7 @@ class RAGStreamResponse:
     """Metadata for streaming RAG response."""
     sources: List[RetrievedDocument]
     context_used: str
+    usage: UsageStats = field(default_factory=UsageStats)
 
 
 class RAGPipeline:
@@ -74,12 +85,18 @@ class RAGPipeline:
             messages = self._build_messages(query, context, chat_history)
 
             # Step 3: Generate response from LLM
-            answer = await self.llm.generate(messages)
+            llm_response = await self.llm.generate(messages)
 
             return RAGResponse(
-                answer=answer,
+                answer=llm_response.content,
                 sources=documents,
                 context_used=context,
+                usage=UsageStats(
+                    prompt_tokens=llm_response.prompt_tokens,
+                    completion_tokens=llm_response.completion_tokens,
+                    total_tokens=llm_response.total_tokens,
+                    response_time_ms=llm_response.response_time_ms,
+                ),
             )
         except Exception as e:
             print(f"RAG Pipeline Error: {e}")
@@ -94,15 +111,18 @@ class RAGPipeline:
         query: str,
         chat_history: Optional[List[Dict[str, str]]] = None,
         top_k: Optional[int] = None,
-    ) -> tuple[AsyncGenerator[str, None], RAGStreamResponse]:
-        """Execute the RAG pipeline with streaming response."""
+    ) -> tuple[AsyncGenerator[Dict[str, Any], None], RAGStreamResponse]:
+        """Execute the RAG pipeline with streaming response.
+
+        Yields dicts with 'type': 'content' for text and 'type': 'stats' for usage.
+        """
         try:
             context, documents = await self.retriever.search_with_context(query, top_k)
             messages = self._build_messages(query, context, chat_history)
 
             async def generate():
-                async for chunk in self.llm.generate_stream(messages):
-                    yield chunk
+                async for item in self.llm.generate_stream(messages):
+                    yield item
 
             metadata = RAGStreamResponse(
                 sources=documents,
@@ -114,7 +134,8 @@ class RAGPipeline:
             print(f"RAG Stream Error: {e}")
 
             async def error_generate():
-                yield f"Error: {str(e)}"
+                yield {"type": "content", "content": f"Error: {str(e)}"}
+                yield {"type": "stats", "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "response_time_ms": 0}
 
             return error_generate(), RAGStreamResponse(sources=[], context_used="")
 

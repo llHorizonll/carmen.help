@@ -4,12 +4,24 @@ Uses OpenAI-compatible SDK to communicate with Z.ai API.
 """
 
 from typing import AsyncGenerator, Optional, List, Dict, Any
+from dataclasses import dataclass
+import time
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import settings
+
+
+@dataclass
+class LLMResponse:
+    """Response from the LLM with usage statistics."""
+    content: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    response_time_ms: float = 0.0
 
 
 class LLMService:
@@ -43,8 +55,9 @@ class LLMService:
         messages: List[Dict[str, str]],
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
-    ) -> str:
+    ) -> LLMResponse:
         """Generate a non-streaming response from the LLM."""
+        start_time = time.time()
         try:
             client = self._get_client()
             response = await client.chat.completions.create(
@@ -54,18 +67,41 @@ class LLMService:
                 temperature=temperature or self.temperature,
                 stream=False,
             )
-            return response.choices[0].message.content
+            elapsed_ms = (time.time() - start_time) * 1000
+
+            # Extract token usage
+            usage = response.usage
+            prompt_tokens = usage.prompt_tokens if usage else 0
+            completion_tokens = usage.completion_tokens if usage else 0
+            total_tokens = usage.total_tokens if usage else 0
+
+            return LLMResponse(
+                content=response.choices[0].message.content,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                response_time_ms=elapsed_ms,
+            )
         except Exception as e:
+            elapsed_ms = (time.time() - start_time) * 1000
             print(f"LLM Error: {e}")
-            return f"I apologize, but I'm unable to process your request. Please ensure your Z.ai API key is configured correctly. Error: {str(e)}"
+            return LLMResponse(
+                content=f"I apologize, but I'm unable to process your request. Please ensure your Z.ai API key is configured correctly. Error: {str(e)}",
+                response_time_ms=elapsed_ms,
+            )
 
     async def generate_stream(
         self,
         messages: List[Dict[str, str]],
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
-    ) -> AsyncGenerator[str, None]:
-        """Generate a streaming response from the LLM."""
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Generate a streaming response from the LLM.
+
+        Yields dictionaries with 'content' for text chunks and 'stats' for final usage.
+        """
+        start_time = time.time()
+        total_content = ""
         try:
             client = self._get_client()
             stream = await client.chat.completions.create(
@@ -74,14 +110,37 @@ class LLMService:
                 max_tokens=max_tokens or self.max_tokens,
                 temperature=temperature or self.temperature,
                 stream=True,
+                stream_options={"include_usage": True},
             )
 
+            prompt_tokens = 0
+            completion_tokens = 0
+
             async for chunk in stream:
+                # Check for usage stats (sent at the end with stream_options)
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    prompt_tokens = chunk.usage.prompt_tokens or 0
+                    completion_tokens = chunk.usage.completion_tokens or 0
+
                 if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+                    content = chunk.choices[0].delta.content
+                    total_content += content
+                    yield {"type": "content", "content": content}
+
+            # Send final stats
+            elapsed_ms = (time.time() - start_time) * 1000
+            yield {
+                "type": "stats",
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+                "response_time_ms": elapsed_ms,
+            }
         except Exception as e:
+            elapsed_ms = (time.time() - start_time) * 1000
             print(f"LLM Stream Error: {e}")
-            yield f"Error: Unable to connect to LLM service. {str(e)}"
+            yield {"type": "content", "content": f"Error: Unable to connect to LLM service. {str(e)}"}
+            yield {"type": "stats", "response_time_ms": elapsed_ms, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     def build_rag_prompt(self, context: str) -> str:
         """Build a system prompt with RAG context."""
