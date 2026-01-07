@@ -123,6 +123,37 @@ interface UsageStats {
   response_time_ms: number;
 }
 
+interface SourceInfo {
+  id: string;
+  content: string;
+  score: number;
+  source_url?: string;
+  domain?: string;
+  collection?: string;
+  metadata?: Record<string, any>;
+}
+
+interface CollectionBreakdown {
+  collection: string;
+  domain: string;
+  count: number;
+}
+
+// Domain display names
+const DOMAIN_NAMES: Record<string, string> = {
+  budget: 'Budget',
+  usali: 'USALI',
+  hotel_operations: 'Hotel Ops',
+  general_docs: 'Docs',
+  faq: 'FAQ',
+  custom: 'Custom',
+};
+
+// Get domain badge class
+const getDomainBadgeClass = (domain: string): string => {
+  return `domain-badge domain-badge--${domain || 'custom'}`;
+};
+
 interface ClarificationOption {
   text: string;
   query: string;
@@ -271,7 +302,9 @@ const ChatPage: React.FC = () => {
         const decoder = new TextDecoder();
 
         let fullText = '';
-        let sources: any[] = [];
+        let sources: SourceInfo[] = [];
+        let collectionBreakdown: CollectionBreakdown[] = [];
+        let domains: string[] = [];
         let usage: UsageStats | null = null;
 
         if (reader) {
@@ -307,6 +340,8 @@ const ChatPage: React.FC = () => {
                     }
                   } else if (data.type === 'sources') {
                     sources = data.sources || [];
+                    domains = data.domains || [];
+                    collectionBreakdown = data.collection_breakdown || [];
                   } else if (data.type === 'usage') {
                     usage = {
                       prompt_tokens: data.prompt_tokens || 0,
@@ -315,13 +350,24 @@ const ChatPage: React.FC = () => {
                       response_time_ms: data.response_time_ms || 0,
                     };
                   } else if (data.type === 'done') {
-                    // Add sources to final message
+                    // Add sources to final message with domain badges
                     if (sources.length > 0) {
                       fullText += '\n\n---\n**อ้างอิง:**\n';
-                      sources.forEach((source: any) => {
+                      sources.forEach((source: SourceInfo) => {
                         const url = source.source_url || `https://docscarmencloud.vercel.app/${source.id}`;
-                        fullText += `- [${source.id || 'Documentation'}](${url})\n`;
+                        const domainLabel = source.domain ? `[${DOMAIN_NAMES[source.domain] || source.domain}] ` : '';
+                        fullText += `- ${domainLabel}[${source.id || 'Documentation'}](${url})\n`;
                       });
+
+                      // Add collection breakdown if multiple collections used
+                      if (collectionBreakdown.length > 1) {
+                        fullText += '\n**แหล่งข้อมูล:**\n';
+                        collectionBreakdown.forEach((stat) => {
+                          const domainName = DOMAIN_NAMES[stat.domain] || stat.domain;
+                          fullText += `- ${stat.collection} (${domainName}): ${stat.count} รายการ\n`;
+                        });
+                      }
+
                       // Update final message with sources in state
                       updateMessage(responseMessageId, fullText);
                     }

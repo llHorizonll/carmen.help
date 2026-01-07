@@ -40,6 +40,15 @@ class SourceDocument(BaseModel):
     score: float
     source_url: Optional[str] = None
     metadata: Dict[str, Any] = {}
+    domain: Optional[str] = None
+    collection: Optional[str] = None
+
+
+class CollectionStats(BaseModel):
+    """Statistics about which collections were used."""
+    collection: str
+    domain: str
+    count: int
 
 
 class UsageStats(BaseModel):
@@ -56,6 +65,8 @@ class ChatResponse(BaseModel):
     sources: List[SourceDocument]
     session_id: Optional[str] = None
     usage: Optional[UsageStats] = None
+    domains: List[str] = []  # List of domains used in response
+    collection_breakdown: List[CollectionStats] = []  # Stats per collection
 
 
 async def stream_response(
@@ -101,6 +112,16 @@ async def stream_response(
             for doc in metadata.sources
         ]
 
+        # Calculate collection breakdown
+        collection_counts: dict = {}
+        for doc in metadata.sources:
+            col_name = doc.collection or doc.metadata.get("collection", "unknown")
+            domain = doc.domain or doc.metadata.get("domain", "general_docs")
+            key = f"{col_name}|{domain}"
+            if key not in collection_counts:
+                collection_counts[key] = {"collection": col_name, "domain": domain, "count": 0}
+            collection_counts[key]["count"] += 1
+
         sources_data = {
             "type": "sources",
             "sources": [
@@ -110,9 +131,13 @@ async def stream_response(
                     "score": doc.score,
                     "source_url": doc.source_url,
                     "metadata": doc.metadata,
+                    "domain": doc.domain or doc.metadata.get("domain"),
+                    "collection": doc.collection or doc.metadata.get("collection"),
                 }
                 for doc in metadata.sources
             ],
+            "domains": list(metadata.domains) if metadata.domains else [],
+            "collection_breakdown": list(collection_counts.values()),
         }
         yield f"data: {json.dumps(sources_data)}\n\n"
 
@@ -203,6 +228,16 @@ async def chat(
             sources=sources_data,
         )
 
+        # Calculate collection breakdown
+        collection_counts: dict = {}
+        for doc in result.sources:
+            col_name = doc.collection or doc.metadata.get("collection", "unknown")
+            domain = doc.domain or doc.metadata.get("domain", "general_docs")
+            key = f"{col_name}|{domain}"
+            if key not in collection_counts:
+                collection_counts[key] = {"collection": col_name, "domain": domain, "count": 0}
+            collection_counts[key]["count"] += 1
+
         return ChatResponse(
             answer=result.answer,
             sources=[
@@ -212,6 +247,8 @@ async def chat(
                     score=doc.score,
                     source_url=doc.source_url,
                     metadata=doc.metadata,
+                    domain=doc.domain or doc.metadata.get("domain"),
+                    collection=doc.collection or doc.metadata.get("collection"),
                 )
                 for doc in result.sources
             ],
@@ -222,6 +259,10 @@ async def chat(
                 total_tokens=result.usage.total_tokens,
                 response_time_ms=result.usage.response_time_ms,
             ),
+            domains=list(result.domains) if result.domains else [],
+            collection_breakdown=[
+                CollectionStats(**stats) for stats in collection_counts.values()
+            ],
         )
 
     except Exception as e:

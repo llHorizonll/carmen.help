@@ -1,9 +1,13 @@
 """
 RAG (Retrieval Augmented Generation) module.
 Orchestrates the RAG pipeline: query -> vector search -> context augmentation -> LLM response.
+
+Supports:
+- Multi-collection search with result merging
+- Domain-aware prompt selection based on retrieved documents
 """
 
-from typing import AsyncGenerator, List, Dict, Any, Optional
+from typing import AsyncGenerator, List, Dict, Any, Optional, Set
 from dataclasses import dataclass, field
 
 import sys
@@ -30,6 +34,7 @@ class RAGResponse:
     sources: List[RetrievedDocument]
     context_used: str
     usage: UsageStats = field(default_factory=UsageStats)
+    domains: Set[str] = field(default_factory=set)  # Domains found in search results
 
 
 @dataclass
@@ -38,6 +43,7 @@ class RAGStreamResponse:
     sources: List[RetrievedDocument]
     context_used: str
     usage: UsageStats = field(default_factory=UsageStats)
+    domains: Set[str] = field(default_factory=set)  # Domains found in search results
 
 
 class RAGPipeline:
@@ -56,11 +62,14 @@ class RAGPipeline:
         query: str,
         context: str,
         chat_history: Optional[List[Dict[str, str]]] = None,
+        domains: Optional[Set[str]] = None,
+        collections: Optional[List[str]] = None,
     ) -> List[Dict[str, str]]:
-        """Build the message list for the LLM."""
+        """Build the message list for the LLM with domain-aware prompt."""
         messages = []
 
-        system_prompt = self.llm.build_rag_prompt(context)
+        # Use domain-aware prompt builder with collection info
+        system_prompt = self.llm.build_rag_prompt(context, domains, collections)
         messages.append({"role": "system", "content": system_prompt})
 
         if chat_history:
@@ -70,21 +79,46 @@ class RAGPipeline:
         messages.append({"role": "user", "content": query})
         return messages
 
+    def _extract_collections(self, documents: List[RetrievedDocument]) -> List[str]:
+        """Extract unique collection names from retrieved documents."""
+        collections = set()
+        for doc in documents:
+            if doc.collection_name:
+                collections.add(doc.collection_name)
+        return list(collections)
+
     async def query(
         self,
         query: str,
         chat_history: Optional[List[Dict[str, str]]] = None,
         top_k: Optional[int] = None,
+        use_multi_collection: bool = True,
     ) -> RAGResponse:
-        """Execute the full RAG pipeline and return a complete response."""
+        """
+        Execute the full RAG pipeline and return a complete response.
+
+        Args:
+            query: User query
+            chat_history: Optional conversation history
+            top_k: Number of documents to retrieve
+            use_multi_collection: If True, search all collections (default)
+        """
         try:
             # Step 1: Retrieve relevant documents
-            context, documents = await self.retriever.search_with_context(query, top_k)
+            if use_multi_collection:
+                context, documents, domains = await self.retriever.search_with_context_multi(query, top_k)
+            else:
+                # Backward compatible single-collection search
+                context, documents = await self.retriever.search_with_context(query, top_k)
+                domains = set()
 
-            # Step 2: Build messages with context
-            messages = self._build_messages(query, context, chat_history)
+            # Step 2: Extract collection names for prompt context
+            collections = self._extract_collections(documents)
 
-            # Step 3: Generate response from LLM
+            # Step 3: Build messages with context, domain, and collection info
+            messages = self._build_messages(query, context, chat_history, domains, collections)
+
+            # Step 4: Generate response from LLM
             llm_response = await self.llm.generate(messages)
 
             return RAGResponse(
@@ -97,6 +131,7 @@ class RAGPipeline:
                     total_tokens=llm_response.total_tokens,
                     response_time_ms=llm_response.response_time_ms,
                 ),
+                domains=domains,
             )
         except Exception as e:
             print(f"RAG Pipeline Error: {e}")
@@ -111,14 +146,30 @@ class RAGPipeline:
         query: str,
         chat_history: Optional[List[Dict[str, str]]] = None,
         top_k: Optional[int] = None,
+        use_multi_collection: bool = True,
     ) -> tuple[AsyncGenerator[Dict[str, Any], None], RAGStreamResponse]:
-        """Execute the RAG pipeline with streaming response.
+        """
+        Execute the RAG pipeline with streaming response.
+
+        Args:
+            query: User query
+            chat_history: Optional conversation history
+            top_k: Number of documents to retrieve
+            use_multi_collection: If True, search all collections (default)
 
         Yields dicts with 'type': 'content' for text and 'type': 'stats' for usage.
         """
         try:
-            context, documents = await self.retriever.search_with_context(query, top_k)
-            messages = self._build_messages(query, context, chat_history)
+            if use_multi_collection:
+                context, documents, domains = await self.retriever.search_with_context_multi(query, top_k)
+            else:
+                context, documents = await self.retriever.search_with_context(query, top_k)
+                domains = set()
+
+            # Extract collection names for prompt context
+            collections = self._extract_collections(documents)
+
+            messages = self._build_messages(query, context, chat_history, domains, collections)
 
             async def generate():
                 async for item in self.llm.generate_stream(messages):
@@ -127,6 +178,7 @@ class RAGPipeline:
             metadata = RAGStreamResponse(
                 sources=documents,
                 context_used=context,
+                domains=domains,
             )
 
             return generate(), metadata

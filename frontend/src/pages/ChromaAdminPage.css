@@ -231,7 +231,7 @@
   border: 1px solid var(--border-color, #e4e6eb);
   border-radius: 8px;
   font-size: 13px;
-  width: 200px;
+  width: 320px;
   transition: border-color 150ms ease;
 }
 

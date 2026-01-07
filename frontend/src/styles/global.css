@@ -805,3 +805,114 @@ body {
     height: 28px;
   }
 }
+
+/* ==================== Domain Badges & Collection Stats ==================== */
+
+.domain-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.domain-badge--usali {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.domain-badge--budget {
+  background: #fce7f3;
+  color: #db2777;
+}
+
+.domain-badge--hotel_operations {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.domain-badge--general_docs {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.domain-badge--faq {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.domain-badge--custom {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Collection breakdown panel */
+.collection-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.collection-breakdown-title {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.collection-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  font-size: 12px;
+}
+
+.collection-stat-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.collection-stat-count {
+  font-weight: 700;
+  color: var(--primary-color);
+  background: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Sources with domain badges */
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.source-item .domain-badge {
+  flex-shrink: 0;
+}
+
+.source-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}

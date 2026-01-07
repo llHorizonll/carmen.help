@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import './ChromaAdminPage.css';
 
 interface CollectionInfo {
@@ -37,6 +37,9 @@ interface SearchResult {
 }
 
 const ChromaAdminPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const collectionFromUrl = searchParams.get('collection');
+
   const [stats, setStats] = useState<ChromaStats | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -64,9 +67,18 @@ const ChromaAdminPage: React.FC = () => {
       setStats(data);
 
       if (data.collections && data.collections.length > 0) {
-        const defaultCollection = data.collections.find((c: CollectionInfo) => c.name === 'carmen_docs') || data.collections[0];
-        setSelectedCollection(defaultCollection.name);
-        fetchDocuments(defaultCollection.name, 0);
+        // Use collection from URL if provided, otherwise default to carmen_docs or first
+        let targetCollection: CollectionInfo | undefined;
+        if (collectionFromUrl) {
+          targetCollection = data.collections.find((c: CollectionInfo) => c.name === collectionFromUrl);
+        }
+        if (!targetCollection) {
+          targetCollection = data.collections.find((c: CollectionInfo) => c.name === 'carmen_docs') || data.collections[0];
+        }
+        if (targetCollection) {
+          setSelectedCollection(targetCollection.name);
+          fetchDocuments(targetCollection.name, 0);
+        }
       }
     } catch (err) {
       setError('Failed to load ChromaDB statistics');
@@ -172,6 +184,13 @@ const ChromaAdminPage: React.FC = () => {
         </div>
 
         <div className="header-actions">
+          <Link to="/admin/collections" className="nav-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z" />
+              <path d="M9 7h6M9 12h6M9 17h4" />
+            </svg>
+            <span>Collections</span>
+          </Link>
           <Link to="/stats" className="nav-link">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 20V10M12 20V4M6 20v-6" />
@@ -254,7 +273,7 @@ const ChromaAdminPage: React.FC = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      placeholder="Semantic search..."
+                      placeholder="e.g., How do I reset my password?"
                       className="search-input"
                     />
                     {searchResults ? (

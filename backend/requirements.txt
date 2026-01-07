@@ -21,3 +21,6 @@ httpx>=0.26.0
 # Additional utilities
 python-dotenv>=1.0.0
 python-multipart>=0.0.6
+
+# Database connectivity
+pymysql>=1.1.0
